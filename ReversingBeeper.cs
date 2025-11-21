@@ -89,9 +89,9 @@ namespace ReversingBeeper
             src.rolloffMode = AudioRolloffMode.Linear;
             src.minDistance = 8f;        
             src.maxDistance = 100f;       
-            src.dopplerLevel = 0.2f;        
+            src.dopplerLevel = 0.25f;        
             src.reverbZoneMix = 0f;
-            src.volume = 0.7f;
+            src.volume = 0.65f;
             src.spatialize = true;       
             src.playOnAwake = false;
             return src;
