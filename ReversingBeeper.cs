@@ -1,5 +1,6 @@
 ﻿using BepInEx;
 using HarmonyLib;
+using JetBrains.Annotations;
 using System;
 using System.IO;
 using System.Reflection;
@@ -8,7 +9,7 @@ using static Ship;
 
 namespace ReversingBeeper
 {
-    [BepInPlugin("quakec.ReversingBeeper", "Reversing Beeper", "1.0.0")]
+    [BepInPlugin("quakec.ReversingBeeper", "Reversing Beeper", "0.221.4.1")]
     [BepInProcess("valheim.exe")]
     public class ReversingBeeper : BaseUnityPlugin
     {
@@ -27,7 +28,14 @@ namespace ReversingBeeper
 
         private static void LoadWav()
         {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
+            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string reverseWavPath = Path.Combine(dir, "reverse.wav");
+            Stream stream = null;
+            if (File.Exists(reverseWavPath))
+                stream = File.OpenRead(reverseWavPath);
+            else
+                stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
+
             if (stream == null)
                 throw new Exception("Embedded WAV not found: " + ResourceName);
 
@@ -38,6 +46,7 @@ namespace ReversingBeeper
                 stream.CopyTo(ms);
                 data = ms.ToArray();
             }
+            stream.Close();
 
             // parse header
             ushort channels = BitConverter.ToUInt16(data, 22);
@@ -94,6 +103,7 @@ namespace ReversingBeeper
             src.volume = 0.65f;
             src.spatialize = true;       
             src.playOnAwake = false;
+            src.pitch = UnityEngine.Random.Range(0.96f, 1.04f);
             return src;
         }
 
@@ -118,11 +128,29 @@ namespace ReversingBeeper
                 src.Stop();
         }
 
+        private static bool TryGetShipZdoidIfOwner(Ship ship, out ZDOID zdoid)
+        {
+            zdoid = default;
+
+            if (ship == null) return false;
+
+            ZNetView nview = ship.GetComponent<ZNetView>();
+            if (nview == null || !nview.IsValid()) return false;
+
+            if (!nview.IsOwner()) return false;
+
+            ZDO zdo = nview.GetZDO();
+            if (zdo == null) return false;
+
+            zdoid = zdo.m_uid;
+            return true;
+        }
+
         // **************** patches ****************
 
         // RPC registration
         [HarmonyPatch(typeof(ZNetScene), "Awake")]
-        class ZNetSceneAwakePatch
+        public static class ZNetSceneAwakePatch
         {
             static void Postfix()
             {
@@ -136,9 +164,15 @@ namespace ReversingBeeper
         {
             public static void Postfix(Ship __instance)
             {
-                ZNetView nview = __instance.GetComponent<ZNetView>();
-                ZDO zdo = nview.GetZDO();
-                ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                //ZNetView nview = __instance.GetComponent<ZNetView>();
+                //ZDO zdo = nview.GetZDO();
+                //ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                //ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, false);
+                ZDOID zdoid;
+
+                if (!TryGetShipZdoidIfOwner(__instance, out zdoid))
+                    return;
+
                 ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, false);
             }
         }
@@ -148,9 +182,15 @@ namespace ReversingBeeper
         {
             public static void Postfix(Ship __instance)
             {
-                ZNetView nview = __instance.GetComponent<ZNetView>();
-                ZDO zdo = nview.GetZDO();
-                ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                //ZNetView nview = __instance.GetComponent<ZNetView>();
+                //ZDO zdo = nview.GetZDO();
+                //ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                //ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, false);
+                ZDOID zdoid;
+
+                if (!TryGetShipZdoidIfOwner(__instance, out zdoid))
+                    return;
+
                 ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, false);
             }
         }
@@ -162,9 +202,12 @@ namespace ReversingBeeper
             {
                 if (___m_speed == Speed.Back)
                 {
-                    ZNetView nview = __instance.GetComponent<ZNetView>();
-                    ZDO zdo = nview.GetZDO();
-                    ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                    //ZNetView nview = __instance.GetComponent<ZNetView>();
+                    //ZDO zdo = nview.GetZDO();
+                    //ZDOID zdoid = new ZDOID(zdo.m_uid.UserID, zdo.m_uid.ID);
+                    //ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, true);
+                    ZDOID zdoid;
+                    if (!TryGetShipZdoidIfOwner(__instance, out zdoid)) return;
                     ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "QB_ReverseBeeper", zdoid.UserID, zdoid.ID, true);
                 }
             }
